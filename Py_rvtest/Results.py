@@ -11,18 +11,19 @@ class SaveData:
         self._res.to_csv(self._out, sep='\t', index=False, header=True)
 
 
-class HDF5Store(object):
+class HDF5Store:
     """
-    Simple class to append value to a hdf5 file on disc (usefull for building keras datasets)
+    Simple class to append > 2D value to a hdf5 file on disc
 
     Params:
-        datapath: filepath of h5 file
-        dataset: dataset name within the file
-        shape: dataset shape (not counting main/batch axis)
-        dtype: numpy dtype
+        d_path: filepath of h5 file
+        d_set: dataset name within the file
+        d_shape: dataset shape (not counting main/batch axis)
+        d_type: numpy dtype
 
     Usage:
-        hdf5_store = HDF5Store('/tmp/hdf5_store.h5','X', shape=(20,20,3))
+        hdf5_store.shape = (20, 20, 3)
+        hdf5_store = HDF5Store('/tmp/hdf5_store.h5','X', d_shape=(20,20,3))
         x = np.random.random(hdf5_store.shape)
         hdf5_store.append(x)
         hdf5_store.append(x)
@@ -30,32 +31,34 @@ class HDF5Store(object):
     From https://gist.github.com/wassname/a0a75f133831eed1113d052c67cf8633
     """
 
-    def __init__(self, datapath, dataset, shape, dtype=np.float32, compression="gzip", chunk_len=1):
-        self.datapath = datapath
-        self.dataset = dataset
-        self.shape = shape
-        self.i = 0
+    def __init__(self, d_path, d_set, d_shape, d_type=np.float64):
+        self._d_path = d_path
+        self._d_set = d_set
+        self._d_shape = d_shape
+        self._row = 0
+        self._d_type = d_type
 
-        with h5py.File(self.datapath, mode='w') as h5f:
+        with h5py.File(self._d_path, mode='w') as h5f:
             self.dset = h5f.create_dataset(
-                dataset,
-                shape=(0,) + shape,
-                maxshape=(None,) + shape,
-                dtype=dtype,
-                compression=compression,
-                chunks=(chunk_len,) + shape)
+                self._d_set,
+                shape=(0, ) + self._d_shape[1:],
+                maxshape=(None, ) + self._d_shape[1:],
+                dtype=self._d_type)
 
-    def append(self, values):
-        with h5py.File(self.datapath, mode='a') as h5f:
-            dset = h5f[self.dataset]
-            dset.resize((self.i + 1,) + shape)
-            dset[self.i] = [values]
-            self.i += 1
-            h5f.flush()
+    def append(self, arr):
+        with h5py.File(self._d_path, mode='a') as h5f:
+            dset = h5f[self._d_set]
+            dset.resize((self._row + arr.shape[0],) + arr.shape[1:])
+            dset[self._row:, :] = arr
+            self._row += arr.shape[0]
 
 
-# test
-shape = (20, 20, 3)
-hdf5_store = HDF5Store('/tmp/hdf5_store.h5', 'X', shape=shape)
-for _ in range(10):
-    hdf5_store.append(np.random.random(shape))
+def main():
+    shape = (20, 20, 3)
+    hdf5_store = HDF5Store('/tmp/hdf5_store.h5', 'X', d_shape=shape)
+    for _ in range(10):
+        hdf5_store.append(np.random.random(shape))
+
+
+if __name__ == '__main__':
+    main()
