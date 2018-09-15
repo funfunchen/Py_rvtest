@@ -45,25 +45,28 @@ with h5py.File("temp_min.h5", "w") as f:
     f.create_dataset("min_cc", data=pheno_min_cc, dtype=np.float64)
     pheno_min_tt = None
 
-min_gy_store = Res.HDF5Store("temp_min.h5", "min_gy", d_shape=(1, 1))
-min_gg_store = Res.HDF5Store("temp_min.h5", "min_gg", d_shape=(1, 1))
-min_gz_store = Res.HDF5Store("temp_min.h5", "min_gz", d_shape=(1, cos_col))
-for i in tqdm(range(0, snp_num, chunk)):
-    # Todo
-    # iterate the object to get matrix and compute
-    # snp_id = snps[i, i+chunk]
-    mat = ge.get_geno(i, i+chunk, mat_index)
-    geno_min = MinS.GenoMinSuffStat(mat, traits, cos)
-    min_gy_store.append(geno_min.get_GmY)
-    min_gg_store.append(geno_min.get_GmGm)
-    min_gz_store.append(geno_min.get_GmZc)
+    dset_gy = f.create_dataset("min_gy", d_shape=(0, ), maxshape=(None, ), d_type=np.float64)
+    dset_gg = f.create_dataset("min_gg", d_shape=(0, ), maxshape=(None, ), d_type=np.float64)
+    dset_gz = f.create_dataset("min_gz", d_shape=(0, cos_col), maxshape=(None, cos_col), d_type=np.float64)
+    for i in tqdm(range(0, snp_num, chunk)):
+        # Todo
+        # iterate the object to get matrix and compute
+        # snp_id = snps[i, i+chunk]
+        mat = ge.get_geno(i, i+chunk, mat_index)
+        geno_min = MinS.GenoMinSuffStat(mat, traits, cos)
+        dset_gy.resize((i+geno_min.get_GmY.shape[0], ))
+        dset_gy[i:, ] = geno_min.get_GmY
+        dset_gg.resize((i + geno_min.get_GmGm.shape[0], ))
+        dset_gg[i:, ] = geno_min.get_GmGm
+        dset_gz.resize((i + geno_min.get_GmZc.shape[0], cos_col))
+        dset_gz[i:, cos_col] = geno_min.get_GmZc
 
-    # beta, se, z_score, p = Reg.LinearRegression(mat, ped_pheno).cal_p()
-    # res = pd.DataFrame({'SNP': snp_id, 'Beta': beta, 'SE': se, 'Z-score': z_score, 'P': p}).round({'Beta': 6,
-    #                                                                                                'SE': 5,
-    #                                                                                                'Z-score': 6,
-    #                                                                                                'P': 6})
-    # df = df.append(res, ignore_index=True)
+        # beta, se, z_score, p = Reg.LinearRegression(mat, ped_pheno).cal_p()
+        # res = pd.DataFrame({'SNP': snp_id, 'Beta': beta, 'SE': se, 'Z-score': z_score, 'P': p}).round({'Beta': 6,
+        #                                                                                                'SE': 5,
+        #                                                                                                'Z-score': 6,
+        #                                                                                                'P': 6})
+        # df = df.append(res, ignore_index=True)
 
 
 
