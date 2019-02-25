@@ -13,9 +13,9 @@ from sklearn import preprocessing
 
 
 class H5pyToMatrix:
-    """read h5py file and clean it to the model-fitting ready matrix"""
+    """read h5py file and clean it to the model-fitting ready matrix, produce generator if needed"""
 
-    def __init__(self, data):
+    def __init__(self, data, batch_size=50000):
         try:
             self._call = h5py.File(data, mode='r')
         except OSError as e:
@@ -23,13 +23,32 @@ class H5pyToMatrix:
             raise
         self._gt = self._call['calldata/GT']
         self._samples = self._call['samples']
-        self._nx, self._ny, self._nz = self._gt.shape   # the length of each dim
-
+        self._nx, self._ny, self._nz = self._gt.shape # the length of each dim
+        self._batch_size = batch_size
+        self._num_batches = int(np.ceil(self._nx / batch_size))
+    
     def __str__(self):
         return 'vcf size: ({}, {})'.format(self._nx, self._ny)
 
     def __repr__(self):
         return 'H5py file shape: ({}, {}, {})'.format(self._nx, self._ny, self._nz)
+
+    def data_generator(self, z=None):
+        """generate batchs of genetype data
+
+	    :param z: the selected column #, should be a list or None as default
+        """
+        batch_size = self._batch_size
+        genotype_batch_indexes = [[i*batch_size, (i+1)*batch_size] for i in range(self._num_batches)]
+        for k, (x,y) in enumerate(genotype_batch_indexes, 1):
+            if z is not None:
+                batch_geno = allel.GenotypeArray(self._gt[x:y, z])
+            else:
+                batch_geno =  allel.GenotypeArray(self._gt[x:y])
+                if k == genotype_batch_indexes:
+                    batch_geno =  allel.GenotypeArray(self._gt[x:y]) # deal with the last batch
+            batch_alt = batch_geno.to_n_alt(fill=0).astype('float64')   # missing is '0'
+            yield batch_alt
 
     def get_geno(self, m=0, n=0, z=None):
         """return the subset or whole genotype data in the vcf files
@@ -54,6 +73,14 @@ class H5pyToMatrix:
     @property  # read-only
     def get_snp(self):
         return self._call['variants/ID']
+
+    @property
+    def get_sample_size(self):
+        return self._ny
+    
+    @property
+    def get_num_batches(self):
+        return self._num_batches
 
     def check_sample_matched(self, y_sam):
         samples = self._samples[:].astype(y_sam.dtype)
@@ -102,12 +129,11 @@ class VcfToMatrix:
         self._gt = self._call['calldata/GT']
         self._nx, self._ny, self._nz = self._gt.shape   # the length of each dim
 
-
 def main():
-    file = '/Users/fangchen/PycharmProjects/Py_rvtest/test_sample_files/ukb.chr3_head20.vcf.h5'
-    sub_vcf = H5pyToMatrix(file)
-    sub_ge = sub_vcf.get_geno(2, 6, [1, 2, 3])
-    print(sub_ge.shape)
+    file = './data/chr3_1000.h5'
+    s_vcf = H5pyToMatrix(file)
+    s_ge = sub_vcf.get_geno(2, 6, [1, 2, 3])
+    print(s_ge.shape)
 
 
 if __name__ == '__main__':
