@@ -1,0 +1,29 @@
+
+gs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+*.pyo
+__pycache__
+
+#  temp files#
+###################
+*~
+*.Re
+.DS_Store
+
+# test files
+##############
+.test
+
